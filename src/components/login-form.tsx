@@ -11,8 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Lock } from 'lucide-react';
 
 export function LoginForm() {
-  const [email, setEmail] = useState('gavinamosj@gmail.com');
-  const [password, setPassword] = useState('ArroFeeder123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
