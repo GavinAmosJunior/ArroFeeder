@@ -4,11 +4,11 @@
 #include <time.h>
 
 /* ================= CREDENTIALS ================= */
-const char* WIFI_SSID = "Greyhaus";
-const char* WIFI_PASS = "Dollararro2025";
-const char* API_KEY = "AIzaSyDwdYF-XFH2_MmYrOQyWcaz3iWFfQgdoMg";
-const char* USER_EMAIL = "gavinamosj@gmail.com"; 
-const char* USER_PASSWORD = "ArroFeeder123";
+const char* WIFI_SSID = "YOUR_WIFI_SSID";
+const char* WIFI_PASS = "YOUR_WIFI_PASSWORD";
+const char* API_KEY = "YOUR_API_KEY";
+const char* USER_EMAIL = "YOUR_USER_EMAIL"; 
+const char* USER_PASSWORD = "YOUR_USER_PASSWORD";
 
 String idToken = ""; 
 
@@ -188,7 +188,7 @@ void readAndUploadUltrasonic() {
 void executeFeed() {
   Serial.println("[MOTOR] SPINNING... Feeding Arro.");
   digitalWrite(IN1, HIGH); 
-  delay(6000); 
+  delay(100); 
   digitalWrite(IN1, LOW);
   Serial.println("[MOTOR] STOPPED.");
 
