@@ -91,7 +91,7 @@ export default function Dashboard() {
       await update(ref(database, 'petfeeder'), { 
         feed_now: true,
       });
-      toast({ title: "૮₍´｡ᵔ ꈊ ᵔ｡`₎ა", description: "Arro's Love For You +1 ｡ ₊°༺❤︎༻°₊ ｡" });
+      toast({ title: "", description: "Arro's Love For You +1 ｡ ₊°༺❤︎༻°₊ ｡" });
     } catch (error) {
       toast({ variant: "destructive", title: "Error", description: "Database unreachable." });
     } finally {

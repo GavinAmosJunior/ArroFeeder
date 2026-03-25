@@ -26,6 +26,10 @@ int lastTriggeredMinute = -1;
 volatile bool physicalButtonFlag = false; 
 unsigned long lastButtonTime = 0; 
 
+// Forward Declarations
+bool executeFeed();
+bool firebaseLogin(); // <-- THE FIX IS HERE
+
 void IRAM_ATTR handleButtonPress() {
   unsigned long currentTime = millis();
   if (currentTime - lastButtonTime > 1000) {
@@ -49,10 +53,12 @@ bool firebaseLogin() {
     deserializeJson(doc, response);
     idToken = doc["idToken"].as<String>();
     Serial.println("[AUTH] Success: Token acquired.");
+    http.end();
     return true;
   } else {
     Serial.print("[AUTH] Error: Login failed with code ");
     Serial.println(httpCode);
+    http.end();
     return false;
   }
 }
@@ -120,20 +126,24 @@ void syncWithFirebase() {
     StaticJsonDocument<1024> doc;
     deserializeJson(doc, payload);
 
-    // Dashboard "Feed Now" Check
     if (doc["feed_now"] == true) {
       Serial.println("\n[WEB] Remote Feed Triggered via Dashboard!");
-      HTTPClient patchHttp;
-      patchHttp.begin(url);
-      int patchCode = patchHttp.PATCH("{\"feed_now\":false}");
-      if(patchCode != 200) {
-        Serial.print("[ERROR] Failed to reset feed_now flag. Code: "); Serial.println(patchCode);
+      if (executeFeed()) {
+        HTTPClient patchHttp;
+        patchHttp.begin(url);
+        patchHttp.addHeader("Content-Type", "application/json");
+        int patchCode = patchHttp.PATCH("{\"feed_now\":false}");
+        if(patchCode == 200) {
+          Serial.println("[DATABASE] feed_now flag reset to false.");
+        } else {
+          Serial.print("[ERROR] Failed to reset feed_now flag. Code: "); Serial.println(patchCode);
+        }
+        patchHttp.end();
+      } else {
+        Serial.println("[WEB] Feed execution failed. Will retry on next cycle.");
       }
-      patchHttp.end();
-      executeFeed();
     }
 
-    // Schedule Check
     struct tm ti;
     if (doc["schedule"]["enabled"] == true && getLocalTime(&ti)) {
       if (ti.tm_hour == (int)doc["schedule"]["hour"] && 
@@ -177,6 +187,7 @@ void readAndUploadUltrasonic() {
     HTTPClient http;
     String url = "https://studio-9181352265-1f5a4-default-rtdb.asia-southeast1.firebasedatabase.app/petfeeder.json?auth=" + idToken;
     http.begin(url);
+    http.addHeader("Content-Type", "application/json");
     int patchCode = http.PATCH("{\"food_level\":" + String(foodPercent) + "}");
     if (patchCode != 200) {
       Serial.print("[SENSOR] Upload Error: "); Serial.println(patchCode);
@@ -185,27 +196,39 @@ void readAndUploadUltrasonic() {
   }
 }
 
-void executeFeed() {
+bool executeFeed() {
   Serial.println("[MOTOR] SPINNING... Feeding Arro.");
   digitalWrite(IN1, HIGH); 
   delay(100); 
   digitalWrite(IN1, LOW);
   Serial.println("[MOTOR] STOPPED.");
 
-  if (WiFi.status() == WL_CONNECTED) {
-    struct tm ti;
-    if (getLocalTime(&ti)) {
-      HTTPClient putHttp;
-      String url = "https://studio-9181352265-1f5a4-default-rtdb.asia-southeast1.firebasedatabase.app/petfeeder/last_feed.json?auth=" + idToken;
-      putHttp.begin(url);
-      long long timestamp = (long long)time(nullptr) * 1000;
-      int putCode = putHttp.PUT(String(timestamp));
-      if (putCode == 200) {
-        Serial.println("[DATABASE] last_feed timestamp updated.");
-      } else {
-        Serial.print("[ERROR] last_feed update failed. Code: "); Serial.println(putCode);
-      }
-      putHttp.end();
-    }
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("[ERROR] Cannot update timestamp, WiFi disconnected.");
+    return false;
+  }
+
+  struct tm ti;
+  if (!getLocalTime(&ti, 10000)) { // 10 second timeout
+      Serial.println("[ERROR] Cannot update timestamp, failed to get local time.");
+      return false;
+  }
+
+  HTTPClient putHttp;
+  String url = "https://studio-9181352265-1f5a4-default-rtdb.asia-southeast1.firebasedatabase.app/petfeeder/last_feed.json?auth=" + idToken;
+  putHttp.begin(url);
+  putHttp.addHeader("Content-Type", "application/json");
+  
+  long long timestamp = (long long)time(nullptr) * 1000;
+  int putCode = putHttp.PUT(String(timestamp));
+  putHttp.end();
+
+  if (putCode == 200) {
+    Serial.println("[DATABASE] last_feed timestamp updated.");
+    return true; // Success!
+  } else {
+    Serial.print("[ERROR] last_feed update failed. Code: "); Serial.println(putCode);
+    if (putCode == 401) { firebaseLogin(); } // Re-authenticate if token was the issue
+    return false; // Failure!
   }
 }
