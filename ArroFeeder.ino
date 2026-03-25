@@ -16,8 +16,8 @@
 #define DATABASE_URL "YOUR_FIREBASE_DATABASE_URL"
 
 // User Email and Password for Firebase Authentication
-#define USER_EMAIL "gavinamosj@gmail.com"
-#define USER_PASSWORD "ArroFeeder123"
+#define USER_EMAIL "YOUR_EMAIL"
+#define USER_PASSWORD "YOUR_PASSWORD"
 
 // Define Firebase objects
 FirebaseData fbdo;
